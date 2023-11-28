@@ -1,2 +1,2 @@
-# chess-delay
-A Python program which allows for a delay of transmission of moves as played on live chessboard and broadcasted online
+# Chess Delay
+In professional chess tournaments, there is often a delay in the online broadcasting of the moves played by the players on the live chessboards. This is done as an anti-cheating measure. I am trying to automate this process by accessing the original file at the ith minute, reading and storing it, and then sending it to an FTP server which will broadcast it at the (i + delay)th minute.
