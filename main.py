@@ -7,6 +7,7 @@ In professional chess tournaments, there is often a delay in the online broadcas
 from ftplib import FTP
 import time
 import threading
+import tempfile
 
 
 # Flag to exit the loop
@@ -28,11 +29,12 @@ def uploadToFTP(delay, host, username, password, remoteDirectory, localPath):
   global exitFlag
 
   # Create a dictionary to store the file values at different points in time
-  storeFileValues = {time: "" for time in range(delay)}
+  storeFileValues = {time: b'' for time in range(delay)}
 
   # Connect to the FTP server
   ftp = FTP(host)
   ftp.login(username, password)
+  ftp.set_pasv(True)
 
   # Change to the remote directory
   ftp.cwd(remoteDirectory)
@@ -44,14 +46,19 @@ def uploadToFTP(delay, host, username, password, remoteDirectory, localPath):
 
     if minsPassed >= delay:
       # Upload the file to the FTP server
-      ftp.storbinary(f'STOR games.pgn', storeFileValues.get(minsPassed % delay))
+      with tempfile.TemporaryFile() as fp:
+        fp.write(storeFileValues[minsPassed % delay])
+        fp.seek(0)
+        ftp.storbinary('STOR games.pgn', fp)
+        fp.close()
     
     # Open the local file in binary mode
     with open(localPath, 'rb') as file:
-      storeFileValues[minsPassed % delay] = file
+      storeFileValues[minsPassed % delay] = file.read()
     
     minsPassed += 1
     time.sleep(60)
+    print("Mins passed: ", minsPassed)
   
   # Close the FTP connection
   ftp.quit()
