@@ -7,70 +7,78 @@ In professional chess tournaments, there is often a delay in the online broadcas
 from ftplib import FTP, error_perm
 import time
 import tempfile
+import socket
 
 loginFlag = False
+storeFileValues = {}
 
 # Upload to FTP function
-def uploadToFTP(delay, host, username, password, remoteDirectory, localPath):
+def uploadToFTP(delay, host, username, password, remoteDirectory, localPath, secondsPassed = 0):
 
-  global loginFlag
+  global loginFlag, storeFileValues
 
   delayInSec = delay * 60
   numOfBuckets = delayInSec // 10
 
   print("Entered uploadToFTP func")
 
-  # Create a dictionary to store the file values at different points in time
-  storeFileValues = {time: b'' for time in range(numOfBuckets)}
+  if secondsPassed == 0:
+    # Create a dictionary to store the file values at different points in time
+    storeFileValues = {time: b'' for time in range(numOfBuckets)}
 
-  # Keep track of time in mins
-  secondsPassed = 0
-
-  while True:
-    
-    delayBucket = (secondsPassed // 10) % numOfBuckets
-
-    if secondsPassed >= delayInSec:
+  try:
+    while True:
       
-      if not loginFlag:
-        # Connect to the FTP server
-        try:
-          ftp = FTP(host=host, user=username, passwd=password)
-        except error_perm as e:
-          print("Credentials are bad!")
-        # ftp.login(username, password)
+      delayBucket = (secondsPassed // 10) % numOfBuckets
 
-        print("Logged in to FTP server!")
+      if secondsPassed >= delayInSec:
+        
+        if not loginFlag:
+          # Connect to the FTP server
+          try:
+            ftp = FTP(host=host, user=username, passwd=password)
+          except socket.error:
+            print("Error connecting to FTP server due to internet issues.")
+            time.sleep(5)
+            uploadToFTP(delay, host, username, password, remoteDirectory, localPath, secondsPassed)
+          except error_perm as e:
+            print("Credentials are bad!")
 
-        # Change to the remote directory
-        ftp.cwd(remoteDirectory)
+          print("Logged in to FTP server!")
 
-        print("Connected to FTP server!")
+          # Change to the remote directory
+          ftp.cwd(remoteDirectory)
 
-        loginFlag = True
+          print("Connected to FTP server!")
 
-      # Upload the file to the FTP server
-      with tempfile.TemporaryFile() as fp:
-        fp.write(storeFileValues[delayBucket])
-        fp.seek(0)
-        print("Start uploading file")
-        try:
-          ftp.storbinary('STOR games.pgn', fp)
-        except error_perm as e:
-          print(f"Error uploading file: {e}")
-        print("Completed uploading file!")
-        fp.close()
-    
-    # Open the local file in binary mode
-    with open(localPath, 'rb') as file:
-      storeFileValues[delayBucket] = file.read()
-    
-    time.sleep(10)
-    secondsPassed += 10
-    print("Seconds passed: ", secondsPassed)
-  
-  # Close the FTP connection
-  ftp.quit()
+          loginFlag = True
+
+        # Upload the file to the FTP server
+        with tempfile.TemporaryFile() as fp:
+          fp.write(storeFileValues[delayBucket])
+          fp.seek(0)
+          print("Start uploading file")
+          try:
+            ftp.storbinary('STOR games.pgn', fp)
+          except error_perm as e:
+            print(f"Error uploading file: {e}")
+          print("Completed uploading file!")
+          fp.close()
+      
+      # Open the local file in binary mode
+      with open(localPath, 'rb') as file:
+        storeFileValues[delayBucket] = file.read()
+      
+      time.sleep(10)
+      secondsPassed += 10
+      print("Seconds passed: ", secondsPassed)
+  except socket.error:
+    print("Maybe connection timed out. Retrying...")
+    loginFlag = False
+    time.sleep(5)
+    uploadToFTP(delay, host, username, password, remoteDirectory, localPath, secondsPassed)
+  except KeyboardInterrupt:
+    print("Terminating Program! Please wait.")
 
 # Start execution
 if __name__ == "__main__":
