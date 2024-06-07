@@ -84,6 +84,8 @@ def uploadToFTP(delay, host, username, password, remoteDirectory, localPath, sec
 # Start execution
 if __name__ == "__main__":
 
+  print("Developed and maintained by Sanchet Sandesh Nagarnaik.")
+
   delay = int(input("Please enter desired delay time (just the number of minutes): "))
   host = input("Please enter the FTP host address: ")
   username = input("Please enter the FTP server username: ")
